@@ -8,10 +8,13 @@ from telegram.ext import (
 )
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image
+import pytesseract
+import io
 import re
 
 # حط توكن البوت هنا
-TOKEN = 8720630364:AAFuXV5h_IgzNEGUZbVFvTzQSgWdnqpoBOA
+TOKEN = "PUT_YOUR_BOT_TOKEN_HERE"
 
 
 # ---------------------------
@@ -19,20 +22,25 @@ TOKEN = 8720630364:AAFuXV5h_IgzNEGUZbVFvTzQSgWdnqpoBOA
 # ---------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "مرحبًا بك في DXB Unit AI 👋\n\n"
-        "✅ أرسل رابط إعلان عقار (Bayut / Property Finder / Dubizzle / Developer)\n"
-        "وسأحاول:\n"
-        "• تحليل الإعلان (عنوان / سعر / مساحة إن وُجدت)\n"
-        "• استخراج رقم العقار من الرابط.\n\n"
-        "📷 الصور: أرسل صورة الآن وسأخبرك أني استلمتها، "
-        "وسنضيف تحليل الصور في المرحلة القادمة."
+        "مرحبًا بك في Dubai Property AI 👋\n\n"
+        "أنا أقدر أعمل لك:\n"
+        "1️⃣ تحليل روابط العقارات (Bayut / Property Finder / Dubizzle / Developers)\n"
+        "   • أستخرج العنوان – السعر – المساحة (إن وُجدت)\n"
+        "   • أستخرج رقم العقار من الرابط.\n\n"
+        "2️⃣ تحليل الصور (Screenshots / Floor plans / Maps)\n"
+        "   • أقرأ النص داخل الصورة (OCR)\n"
+        "   • أحاول أستخرج أرقام الوحدات من الصورة.\n\n"
+        "أرسل الآن:\n"
+        "• رابط إعلان عقار\n"
+        "أو\n"
+        "• صورة متعلقة بالعقار."
     )
 
 
 # ---------------------------
 # استخراج رقم اليونت من الرابط
 # ---------------------------
-def extract_unit_number(url: str) -> str | None:
+def extract_unit_number_from_url(url: str) -> str | None:
     """
     نحاول نلقط أي رقم مكوّن من 4–9 أرقام من الرابط.
     مثال:
@@ -60,13 +68,14 @@ def analyze_link(url: str) -> str:
         price = soup.find(
             "span",
             string=lambda x: x
-            and any(p in x for p in ["AED", "درهم", "د.إ", "دبي"])
+            and isinstance(x, str)
+            and any(p in x for p in ["AED", "درهم", "د.إ"]),
         )
         area = soup.find(
             "span",
             string=lambda x: x
             and isinstance(x, str)
-            and any(w in x.lower() for w in ["sqft", "sqm", "m²"])
+            and any(w in x.lower() for w in ["sqft", "sqm", "m²"]),
         )
 
         title_text = title.get_text(strip=True) if title else "غير متوفر"
@@ -84,6 +93,37 @@ def analyze_link(url: str) -> str:
 
 
 # ---------------------------
+# تحليل الصورة (OCR + أرقام)
+# ---------------------------
+def analyze_image(file_bytes: bytes) -> str:
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+
+        # قراءة النص من الصورة
+        text = pytesseract.image_to_string(img, lang="eng")
+
+        # نحاول نلقط أرقام تشبه أرقام الوحدات
+        numbers = re.findall(r"\b\d{3,9}\b", text)
+        numbers = list(dict.fromkeys(numbers))  # إزالة التكرار
+
+        result = "🖼 *تحليل الصورة*\n\n"
+        if text.strip():
+            result += f"📄 النص المستخرج من الصورة:\n{text.strip()}\n\n"
+        else:
+            result += "لم أستطع قراءة نص واضح من الصورة.\n\n"
+
+        if numbers:
+            result += "🔢 أرقام محتملة للوحدات أو العقارات داخل الصورة:\n"
+            result += "\n".join(f"- {n}" for n in numbers)
+        else:
+            result += "لم أجد أرقام وحدات واضحة في الصورة."
+
+        return result
+    except Exception:
+        return "⚠ لم أستطع تحليل هذه الصورة. جرّب صورة أوضح أو مختلفة."
+
+
+# ---------------------------
 # استقبال أي رسالة
 # ---------------------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,9 +138,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         analysis = analyze_link(url)
 
         # استخراج رقم اليونت من الرابط
-        unit = extract_unit_number(url)
-        if unit:
-            unit_part = f"🔢 *رقم العقار المستخرج من الرابط:*\n{unit}\n"
+        unit_from_url = extract_unit_number_from_url(url)
+        if unit_from_url:
+            unit_part = (
+                f"🔢 *رقم العقار المستخرج من الرابط:*\n{unit_from_url}\n"
+            )
         else:
             unit_part = "❗ لم أستطع العثور على رقم عقار واضح في الرابط.\n"
 
@@ -108,19 +150,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(reply, parse_mode="Markdown")
         return
 
-    # 2) لو صورة (جاهز نضيف التحليل لاحقًا)
+    # 2) لو صورة → تحليل OCR + أرقام
     if msg.photo:
-        await msg.reply_text(
-            "📷 استلمت الصورة.\n"
-            "في النسخة الجاية هضيف تحليل تلقائي لصور المخططات ولقطات الشاشة."
-        )
+        await msg.reply_text("⏳ جاري تحليل الصورة واستخراج النص والأرقام المحتملة...")
+        file = await msg.photo[-1].get_file()
+        file_bytes = await file.download_as_bytearray()
+        result = analyze_image(file_bytes)
+        await msg.reply_text(result, parse_mode="Markdown")
         return
 
     # 3) أي شيء آخر
     await msg.reply_text(
-        "أرسل رابط إعلان عقار لتحليله، أو صورة (التحليل المتقدم للصور في المرحلة القادمة)."
+        "أرسل رابط إعلان عقار لتحليله، أو صورة متعلقة بالعقار لتحليلها."
     )
-
 
 
 # ---------------------------

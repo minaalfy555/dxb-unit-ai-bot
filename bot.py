@@ -108,11 +108,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(reply, parse_mode="Markdown")
         return
 
-    # 2) لو صورة (هنجهزها للتحليل لاحقًا)
+    # 2) لو صورة (جاهز نضيف التحليل لاحقًا)
     if msg.photo:
         await msg.reply_text(
             "📷 استلمت الصورة.\n"
-            "في النسخة الجاية هضيف تحليل تلقائي لصور المخططات ولقطات الشاشة إن شاء الله."
+            "في النسخة الجاية هضيف تحليل تلقائي لصور المخططات ولقطات الشاشة."
         )
         return
 
@@ -120,6 +120,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg.reply_text(
         "أرسل رابط إعلان عقار لتحليله، أو صورة (التحليل المتقدم للصور في المرحلة القادمة)."
     )
+
 
 
 # ---------------------------

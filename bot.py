@@ -101,3 +101,11 @@ app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.ALL, handle_message))
 app.run_polling()
+import re
+
+def extract_unit_number(url: str) -> str:
+    # نبحث عن أي رقم مكوّن من 4 إلى 9 أرقام
+    match = re.search(r'(\d{4,9})', url)
+    if match:
+        return match.group(1)
+    return None

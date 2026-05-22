@@ -1,14 +1,26 @@
-    if not url.startswith("http"):
-        await update.message.reply_text("من فضلك أرسل رابط إعلان صحيح.")
-        return
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
 
-    # محاولة استخراج رقم من اللينك
-    match = re.search(r'(\d+)', url)
+TOKEN = "8720630364:AAFuXV5h_IgzNEGUZbVFvTzQSgWdnqpoBOA"
 
-    if match:
-        unit_number = match.group(1)
-        await update.message.reply_text(f"🔢 رقم العقار المستخرج من الرابط:\n{unit_number}")
-    else:
-        await update.message.reply_text("❗ الرابط لا يحتوي على رقم عقار.")
-python3.11 bot.py
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "مرحبًا بك في DXB Unit AI\n"
+        "Welcome to DXB Unit AI\n\n"
+        "أرسل رابط الإعلان أو صورة العقار لتحليلها.\n"
+        "Send a property link or image to analyze it."
+    )
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "تم استلام الرسالة.\n"
+        "Message received."
+    )
+
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT, echo))
+
+app.run_polling()
 

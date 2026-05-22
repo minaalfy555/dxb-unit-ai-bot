@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 import re
 
 # حط توكن البوت هنا
-TOKEN = "PUT_YOUR_BOT_TOKEN_HERE"
+TOKEN = 8720630364:AAFuXV5h_IgzNEGUZbVFvTzQSgWdnqpoBOA
 
 
 # ---------------------------
